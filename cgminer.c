@@ -96,6 +96,7 @@ void sha256_transf(sha256_ctx *ctx, const unsigned char *message,
     int j;
 
     for (i = 0; i < (int) block_nb; i++) {
+		printf("sha256_transf: block_nb = %u, round = %u\n", block_nb, i);
         sub_block = message + (i << 6);
 
         for (j = 0; j < 16; j++) {
@@ -130,16 +131,17 @@ void sha256_transf(sha256_ctx *ctx, const unsigned char *message,
     }
 }
 
-//len in bytes, NOT bits!!
 void sha256(const unsigned char *message, unsigned int len, unsigned char *digest)
 {
     sha256_ctx ctx;
 
     sha256_init(&ctx);
-    sha256_update(&ctx, message, len);
+    sha256_update(&ctx, message, len); //len in bytes, NOT bits!!
     sha256_final(&ctx, digest);
 }
 
+//use `cgminer ""` to test empty string
+//spec always in bits, C always in bytes!!!!!!
 int main(int argc, char **argv)
 {
 	unsigned char digest[32], i;
@@ -164,35 +166,64 @@ void sha256_init(sha256_ctx *ctx)
     ctx->tot_len = 0;
 }
 
+//len in bytes, NOT bits!!
 void sha256_update(sha256_ctx *ctx, const unsigned char *message,
                    unsigned int len)
 {
     unsigned int block_nb;
-    unsigned int new_len, rem_len, tmp_len;
+    unsigned int new_len, rem_len, tmp_len; //rem = remaining
     const unsigned char *shifted_message;
 
-    tmp_len = SHA256_BLOCK_SIZE - ctx->len;
-    rem_len = len < tmp_len ? len : tmp_len;
+    tmp_len = SHA256_BLOCK_SIZE /*64*/ - ctx->len;
+	//ctx->len always 0, no?
+	//then if len < 64, rem_len = len, else rem_len = 64
+	if (len < tmp_len)
+	{
+		printf("len = rem_len = %u < tmp_len = %u\n", len, tmp_len);
+		rem_len = len;
+	}
+	else
+	{
+		printf("len = %u >= tmp_len = rem_len = %u\n", len, tmp_len);
+		rem_len = tmp_len;
+	}
+	printf("ctx->len = %u\n", ctx->len /* 0 */);
 
-    memcpy(&ctx->block[ctx->len], message, rem_len);
+    memcpy(&ctx->block[ctx->len], message, rem_len); //memcpy dst src len
+    printf("message = %s\n", message);
+    printf("&ctx->block[%u] = %s\n", ctx->len, &ctx->block[ctx->len]);
 
-    if (ctx->len + len < SHA256_BLOCK_SIZE) {
+    if (ctx->len /* 0 */ + len < SHA256_BLOCK_SIZE /*64*/) {
         ctx->len += len;
+		printf("len < 64 so just do sha256_final\n");
         return;
     }
 
-    new_len = len - rem_len;
-    block_nb = new_len / SHA256_BLOCK_SIZE;
+	//len > SHA256_BLOCK_SIZE /*64*/
+    new_len = len - rem_len /*64*/;
+    block_nb = new_len / SHA256_BLOCK_SIZE /*64*/; //can b 0
+	printf("new_len = %u, block_nb = %u\n", new_len, block_nb);
 
-    shifted_message = message + rem_len;
+    shifted_message = message + rem_len /*64*/;
 
-    sha256_transf(ctx, ctx->block, 1);
+    printf("ctx->block = %s\n", ctx->block);
+    sha256_transf(ctx, ctx->block, 1); //ctk->block = message, i.e. beginning of msg
+
+    printf("sha256_updt: block_nb = %u\n", block_nb);
+	//if block_nb = 0, sha256_transf just returns
+	//eg only 2 blocks, 1st n last, i.e.
+	//do 1st here in sha256_transf above
+	//do nothing in blo sha256_transf
+	//do last in sha256_final
     sha256_transf(ctx, shifted_message, block_nb);
 
-    rem_len = new_len % SHA256_BLOCK_SIZE;
+    rem_len = new_len % SHA256_BLOCK_SIZE /*64*/;
+	printf("rem_len = %u\n", rem_len);
 
-    memcpy(ctx->block, &shifted_message[block_nb << 6],
-           rem_len);
+	//block_nb << 6 = block_nb * 64
+    memcpy(ctx->block, &shifted_message[block_nb << 6], rem_len);
+    printf("&shifted_message[%u or %u] = %s\n", block_nb * 64, block_nb << 6, &shifted_message[block_nb << 6]);
+    printf("ctx->block = %s\n", ctx->block);
 
     ctx->len = rem_len;
     ctx->tot_len += (block_nb + 1) << 6;
@@ -206,8 +237,22 @@ void sha256_final(sha256_ctx *ctx, unsigned char *digest)
 
     int i;
 
-    block_nb = (1 + ((SHA256_BLOCK_SIZE - 9)
-                     < (ctx->len % SHA256_BLOCK_SIZE)));
+	printf("sha256_final\n");
+
+	//Section 5.1.1
+	//Suppose that the length of the message, M, is L bits. Append the bit "1" to the end of the message, followed by k zero bits, 
+	//where k is the smallest, non-negative (can b 0?) solution to the equation L + 1 + k = 448 mod 512. Then append the 64-bit block that is 
+	//equal to the number L expressed using a binary representation.
+	//For example, the (8-bit ASCII) message "abc" has length 8x3 = 24, so the message is padded with a one bit, then 448 - (24 + 1) = 423 
+	//zero bits, and then the message length, to become the 512-bit padded message
+
+	//so u cant just pad 1 bit in C cos min is a byte (char), so da min is 1 byte (1000, ie k=3), plus 8 bytes (64 bits) to denote L, = 9 bytes 
+	//so if rem_len (i.e. ctx->len) > 55 bytes, block_nb = 2, else block_nb = 1
+	//55 + 9 = 64 bytes
+
+    block_nb = (1 + ((SHA256_BLOCK_SIZE /*64*/ - 9 /* = 55 */)
+                     < (ctx->len % SHA256_BLOCK_SIZE /*64*/)));
+    printf("sha256_final: block_nb = %u\n", block_nb);
 
     len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 6;

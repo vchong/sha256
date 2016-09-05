@@ -38,7 +38,12 @@ void testdef2(void)
 
 int main (int argc, char **argv)
 {
-	testdef();
-	testdef2();
+	printf("%d %d\n", 1 + (1 < 0) /* false */, 1 + (0 < 1) /* true */);
+
+	//printf("%d = %d\n", 100/64, 100>>6);
+	//printf("%d = %d\n", 100*64, 100<<6);
+
+	//testdef();
+	//testdef2();
 	return 0;
 }
