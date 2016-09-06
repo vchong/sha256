@@ -97,7 +97,7 @@ void sha256_transf(sha256_ctx *ctx, const unsigned char *message,
 
     for (i = 0; i < (int) block_nb; i++) {
 		printf("sha256_transf: block_nb = %u, round = %u\n", block_nb, i);
-        sub_block = message + (i << 6);
+        sub_block = message + (i << 6); //ptr to start of each block
 
         for (j = 0; j < 16; j++) {
             PACK32(&sub_block[j << 2], &w[j]);
@@ -145,6 +145,20 @@ void sha256(const unsigned char *message, unsigned int len, unsigned char *diges
 int main(int argc, char **argv)
 {
 	unsigned char digest[32], i;
+	unsigned char ottf[4] = {0x1, 0x2, 0x3, 0x4};
+	unsigned int x;
+
+	for (i=0; i<4; i++)
+		printf("0x%x ", ottf[i]);
+
+	PACK32(ottf,&x);
+	printf("\n0x%08x\n", x); //0x01020304
+
+	UNPACK32(x,digest);
+	for (i=0; i<4; i++)
+		printf("0x%x ", digest[i]); //0x1 0x2 0x3 0x4
+	printf("\n");
+	return 0;
 
 	printf("%s %lu\n", argv[1], strlen(argv[1]));
 	sha256(argv[1], strlen(argv[1]), digest);
@@ -153,6 +167,7 @@ int main(int argc, char **argv)
 		printf("%x", digest[i]);
 	}
 	printf("\n");
+	return 0;
 }
 
 void sha256_init(sha256_ctx *ctx)
@@ -221,7 +236,7 @@ void sha256_update(sha256_ctx *ctx, const unsigned char *message,
 	printf("rem_len = %u\n", rem_len);
 
 	//block_nb << 6 = block_nb * 64
-    memcpy(ctx->block, &shifted_message[block_nb << 6], rem_len);
+    memcpy(ctx->block, &shifted_message[block_nb << 6], rem_len); //copy last/end of msg, rem_len that has yet 2b processed
     printf("&shifted_message[%u or %u] = %s\n", block_nb * 64, block_nb << 6, &shifted_message[block_nb << 6]);
     printf("ctx->block = %s\n", ctx->block);
 
@@ -256,7 +271,7 @@ void sha256_final(sha256_ctx *ctx, unsigned char *digest)
 
 	//len_b = len_bits
     len_b = (ctx->tot_len + ctx->len) << 3 /* x8 */;
-	printf("len_b = %u 0x%x\n", len_b, len_b);
+	printf("len_b = %u 0x%08x\n", len_b, len_b);
     pm_len = block_nb << 6; //=64 OR 128
 	printf("pm_len = %u, ctx->len = %u\n", pm_len, ctx->len);
 
@@ -291,6 +306,6 @@ void sha256_final(sha256_ctx *ctx, unsigned char *digest)
     sha256_transf(ctx, ctx->block, block_nb);
 
     for (i = 0 ; i < 8; i++) {
-        UNPACK32(ctx->h[i], &digest[i << 2]);
+        UNPACK32(ctx->h[i], &digest[i << 2]); //<< 2 = x4
     }
 }

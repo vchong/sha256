@@ -38,6 +38,9 @@ void testdef2(void)
 
 int main (int argc, char **argv)
 {
+	printf("sizeof(unsigned int) = %lu\n", sizeof(unsigned int));
+	printf("sizeof(int) = %lu\n", sizeof(int));
+
 	printf("%d %d\n", 1 + (1 < 0) /* false */, 1 + (0 < 1) /* true */);
 
 	//printf("%d = %d\n", 100/64, 100>>6);
