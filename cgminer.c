@@ -254,12 +254,39 @@ void sha256_final(sha256_ctx *ctx, unsigned char *digest)
                      < (ctx->len % SHA256_BLOCK_SIZE /*64*/)));
     printf("sha256_final: block_nb = %u\n", block_nb);
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
-    pm_len = block_nb << 6;
+	//len_b = len_bits
+    len_b = (ctx->tot_len + ctx->len) << 3 /* x8 */;
+	printf("len_b = %u 0x%x\n", len_b, len_b);
+    pm_len = block_nb << 6; //=64 OR 128
+	printf("pm_len = %u, ctx->len = %u\n", pm_len, ctx->len);
 
-    memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
-    ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    memset(ctx->block + ctx->len, 0, pm_len - ctx->len); //set end o msg to all 0s, whether it's 1 or 2 blocks
+	printf("\n");
+	for (i=0; i<128; i++)
+	{
+		//printf("%d:%x ", i, ctx->block[i]);
+		printf("%02x ", ctx->block[i]);
+		if ((i + 1) % 16 == 0) printf("\n");
+	}
+	printf("\n\n");
+    ctx->block[ctx->len] = 0x80; //set 1 immediately after msg
+	for (i=0; i<128; i++)
+	{
+		//printf("%d:%x ", i, ctx->block[i]);
+		printf("%02x ", ctx->block[i]);
+		if ((i + 1) % 16 == 0) printf("\n");
+	}
+	printf("\n\n");
+    UNPACK32(len_b, ctx->block + pm_len - 4); //set msg len in last 32b o msg
+	//according to spec, should b last 64b o msg, but this uses UNPACK32
+	//so assume msg len will NOT > 2^32?
+	for (i=0; i<128; i++)
+	{
+		//printf("%d:%x ", i, ctx->block[i]);
+		printf("%02x ", ctx->block[i]);
+		if ((i + 1) % 16 == 0) printf("\n");
+	}
+	printf("\n\n");
 
     sha256_transf(ctx, ctx->block, block_nb);
 
